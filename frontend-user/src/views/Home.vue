@@ -54,6 +54,10 @@
             <span class="book-category">{{ book.category }}</span>
             <h3>{{ book.title }}</h3>
             <p class="book-author">{{ book.author }}</p>
+            <div class="book-rating">
+              <StarRating :rating="getBookAverageRating(book.id)" />
+              <span class="rating-count">({{ getReviewCount(book.id) }})</span>
+            </div>
             <div class="book-footer">
               <span class="book-price">¥{{ book.price.toFixed(2) }}</span>
             </div>
@@ -81,6 +85,8 @@ import { useRouter } from 'vue-router'
 import { useBooksStore } from '../stores/books'
 import { useCartStore } from '../stores/cart'
 import { useUserStore } from '../stores/user'
+import { getBookAverageRating, getReviewCount } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
 
 const router = useRouter()
 const booksStore = useBooksStore()
@@ -118,6 +124,8 @@ const addToCart = (book) => {
   cartStore.addToCart(book)
   toast(`《${book.title}》已加入购物车`, 'cart')
 }
+
+
 </script>
 
 <style scoped>
@@ -368,7 +376,19 @@ const addToCart = (book) => {
 .book-author {
   color: #6c757d;
   font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.book-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 16px;
+}
+
+.rating-count {
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .book-footer {
