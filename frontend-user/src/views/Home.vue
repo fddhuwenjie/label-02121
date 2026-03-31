@@ -54,6 +54,10 @@
             <span class="book-category">{{ book.category }}</span>
             <h3>{{ book.title }}</h3>
             <p class="book-author">{{ book.author }}</p>
+            <div class="book-rating">
+              <StarRating :model-value="getRating(book.id).average" />
+              <span class="rating-count">({{ getRating(book.id).count }})</span>
+            </div>
             <div class="book-footer">
               <span class="book-price">¥{{ book.price.toFixed(2) }}</span>
             </div>
@@ -81,6 +85,8 @@ import { useRouter } from 'vue-router'
 import { useBooksStore } from '../stores/books'
 import { useCartStore } from '../stores/cart'
 import { useUserStore } from '../stores/user'
+import { getBookRatingStats } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
 
 const router = useRouter()
 const booksStore = useBooksStore()
@@ -91,7 +97,7 @@ const openLoginModal = inject('openLoginModal')
 
 const keyword = ref('')
 const searchResult = ref(null)
-const defaultIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
+const defaultIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 0 0 1 6.5 2z"/></svg>'
 const catIcons = {
   '技术': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
   '科幻': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
@@ -102,6 +108,8 @@ const catIcons = {
 }
 
 const displayBooks = computed(() => searchResult.value || booksStore.books)
+
+const getRating = (bookId) => getBookRatingStats(bookId)
 
 const search = () => { searchResult.value = booksStore.searchBooks(keyword.value) }
 const goToDetail = (id) => router.push(`/book/${id}`)
@@ -368,7 +376,19 @@ const addToCart = (book) => {
 .book-author {
   color: #6c757d;
   font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.book-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 16px;
+}
+
+.rating-count {
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .book-footer {

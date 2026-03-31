@@ -10,35 +10,74 @@
       </button>
     </div>
 
+    <div class="tabs">
+      <button :class="['tab-btn', { active: activeTab === 'books' }]" @click="activeTab = 'books'">图书列表</button>
+      <button :class="['tab-btn', { active: activeTab === 'reviews' }]" @click="activeTab = 'reviews'">评价管理</button>
+    </div>
+
     <div class="card">
-      <div class="table-header">
-        <div class="search-box">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input v-model="searchKey" placeholder="搜索图书..." />
+      <div v-if="activeTab === 'books'">
+        <div class="table-header">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input v-model="searchKey" placeholder="搜索图书..." />
+          </div>
         </div>
-      </div>
-      <div class="books-table">
-        <div v-for="book in filteredBooks" :key="book.id" class="book-item">
-          <div class="book-main">
-            <img class="book-cover" :src="book.cover" :alt="book.title" />
-            <div class="book-info">
-              <span class="book-title">{{ book.title }}</span>
-              <span class="book-author">{{ book.author }} · {{ book.category }}</span>
+        <div class="books-table">
+          <div v-for="book in filteredBooks" :key="book.id" class="book-item">
+            <div class="book-main">
+              <img class="book-cover" :src="book.cover" :alt="book.title" />
+              <div class="book-info">
+                <span class="book-title">{{ book.title }}</span>
+                <span class="book-author">{{ book.author }} · {{ book.category }}</span>
+              </div>
+            </div>
+            <div class="book-price">¥{{ book.price.toFixed(2) }}</div>
+            <div :class="['book-stock', { low: book.stock < 20 }]">
+              <span class="stock-dot"></span>
+              {{ book.stock }} 本
+            </div>
+            <div class="book-status">
+              <span :class="['status-tag', book.status === '上架' ? 'active' : '']">{{ book.status }}</span>
+            </div>
+            <div class="book-actions">
+              <button class="action-btn edit" @click="openDialog(book)">编辑</button>
+              <button class="action-btn delete" @click="handleDelete(book.id)">删除</button>
             </div>
           </div>
-          <div class="book-price">¥{{ book.price.toFixed(2) }}</div>
-          <div :class="['book-stock', { low: book.stock < 20 }]">
-            <span class="stock-dot"></span>
-            {{ book.stock }} 本
+        </div>
+      </div>
+
+      <div v-if="activeTab === 'reviews'">
+        <div class="table-header">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input v-model="reviewSearchKey" placeholder="搜索评价..." />
           </div>
-          <div class="book-status">
-            <span :class="['status-tag', book.status === '上架' ? 'active' : '']">{{ book.status }}</span>
-          </div>
-          <div class="book-actions">
-            <button class="action-btn edit" @click="openDialog(book)">编辑</button>
-            <button class="action-btn delete" @click="handleDelete(book.id)">删除</button>
+        </div>
+        <div v-if="filteredReviews.length === 0" class="empty-reviews">
+          暂无评价
+        </div>
+        <div v-else class="reviews-table">
+          <div v-for="review in filteredReviews" :key="review.id" class="review-item">
+            <div class="review-main">
+              <div class="book-info-mini">
+                <span class="book-title-mini">{{ getBookTitle(review.bookId) }}</span>
+                <span class="review-user">{{ review.username }}</span>
+              </div>
+              <div class="review-content">
+                <StarRating :model-value="review.rating" />
+                <p class="review-text">{{ review.content }}</p>
+              </div>
+            </div>
+            <span class="review-time">{{ review.createTime }}</span>
+            <div class="review-actions">
+              <button class="action-btn delete" @click="handleDeleteReview(review.bookId, review.id)">删除</button>
+            </div>
           </div>
         </div>
       </div>
@@ -103,15 +142,45 @@
 import { ref, reactive, computed } from 'vue'
 import { useAdminStore } from '../stores/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { generateBookCover } from '../shared/data'
+import { generateBookCover, getAllReviews, deleteBookReview } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
 
 const adminStore = useAdminStore()
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref(null)
 const searchKey = ref('')
+const reviewSearchKey = ref('')
+const activeTab = ref('books')
 const fileInputRef = ref(null)
 const form = reactive({ title: '', author: '', category: '技术', price: 0, stock: 0, cover: '', description: '' })
+
+const allReviews = computed(() => getAllReviews())
+
+const filteredReviews = computed(() => {
+  if (!reviewSearchKey.value) return allReviews.value
+  return allReviews.value.filter(r => 
+    r.content.includes(reviewSearchKey.value) || 
+    r.username.includes(reviewSearchKey.value) ||
+    getBookTitle(r.bookId).includes(reviewSearchKey.value)
+  )
+})
+
+const getBookTitle = (bookId) => {
+  const book = adminStore.books.find(b => b.id === bookId)
+  return book ? book.title : '未知图书'
+}
+
+const handleDeleteReview = (bookId, reviewId) => {
+  ElMessageBox.confirm('确定要删除这条评价吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    deleteBookReview(bookId, reviewId)
+    ElMessage.success('删除成功')
+  }).catch(() => {})
+}
 
 const categoryColors = {
   '技术': '#3776ab',
@@ -215,6 +284,38 @@ const handleDelete = (id) => {
 .add-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(124, 58, 237, 0.4); }
 .add-btn span { font-size: 20px; }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: #f4f4f8;
+  padding: 6px;
+  border-radius: 12px;
+  width: fit-content;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #1a1a2e;
+}
+
+.tab-btn.active {
+  background: white;
+  color: #1a1a2e;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
 .table-header { margin-bottom: 24px; }
 .search-box { display: flex; align-items: center; gap: 12px; background: #f4f4f8; border-radius: 12px; padding: 0 18px; max-width: 320px; }
 .search-box span { font-size: 18px; }
@@ -242,6 +343,83 @@ const handleDelete = (id) => {
 .action-btn.edit:hover { background: #7c3aed; color: white; }
 .action-btn.delete { background: #fee2e2; color: #ef4444; }
 .action-btn.delete:hover { background: #ef4444; color: white; }
+
+.empty-reviews {
+  text-align: center;
+  padding: 60px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.reviews-table {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+
+.review-item:hover {
+  background: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.review-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.book-info-mini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.book-title-mini {
+  font-weight: 700;
+  color: #1a1a2e;
+  font-size: 15px;
+}
+
+.review-user {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.review-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-text {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.review-time {
+  font-size: 12px;
+  color: #9ca3af;
+  min-width: 140px;
+  text-align: right;
+}
+
+.review-actions {
+  display: flex;
+  gap: 8px;
+}
 
 :deep(.el-dialog) { border-radius: 20px !important; }
 :deep(.el-dialog__header) { padding: 24px 24px 0 !important; }

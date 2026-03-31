@@ -11,7 +11,63 @@ export const STORAGE_KEYS = {
   CATEGORIES: 'bookstore_categories',
   USERS: 'bookstore_users',
   USER_TOKEN: 'bookstore_user_token',
-  ADMIN_TOKEN: 'bookstore_admin_token'
+  ADMIN_TOKEN: 'bookstore_admin_token',
+  REVIEWS_PREFIX: 'reviews_'
+}
+
+// 评价相关工具函数
+export const getBookReviews = (bookId) => {
+  const key = `${STORAGE_KEYS.REVIEWS_PREFIX}${bookId}`
+  const data = localStorage.getItem(key)
+  return data ? JSON.parse(data) : []
+}
+
+export const addBookReview = (bookId, review) => {
+  const key = `${STORAGE_KEYS.REVIEWS_PREFIX}${bookId}`
+  const reviews = getBookReviews(bookId)
+  const newReview = {
+    id: Date.now(),
+    ...review,
+    createTime: new Date().toLocaleString('zh-CN')
+  }
+  reviews.unshift(newReview)
+  localStorage.setItem(key, JSON.stringify(reviews))
+  return newReview
+}
+
+export const deleteBookReview = (bookId, reviewId) => {
+  const key = `${STORAGE_KEYS.REVIEWS_PREFIX}${bookId}`
+  const reviews = getBookReviews(bookId).filter(r => r.id !== reviewId)
+  localStorage.setItem(key, JSON.stringify(reviews))
+}
+
+export const getBookRatingStats = (bookId) => {
+  const reviews = getBookReviews(bookId)
+  if (reviews.length === 0) {
+    return { average: 0, count: 0 }
+  }
+  const sum = reviews.reduce((acc, r) => acc + r.rating, 0)
+  return {
+    average: sum / reviews.length,
+    count: reviews.length
+  }
+}
+
+export const getAllReviews = () => {
+  const reviews = []
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(STORAGE_KEYS.REVIEWS_PREFIX)) {
+      const bookId = key.replace(STORAGE_KEYS.REVIEWS_PREFIX, '')
+      const bookReviews = getBookReviews(bookId)
+      bookReviews.forEach(r => {
+        reviews.push({
+          ...r,
+          bookId: parseInt(bookId)
+        })
+      })
+    }
+  })
+  return reviews.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
 }
 
 // 默认分类数据（支持动态管理）
