@@ -11,7 +11,65 @@ export const STORAGE_KEYS = {
   CATEGORIES: 'bookstore_categories',
   USERS: 'bookstore_users',
   USER_TOKEN: 'bookstore_user_token',
-  ADMIN_TOKEN: 'bookstore_admin_token'
+  ADMIN_TOKEN: 'bookstore_admin_token',
+  REVIEWS_PREFIX: 'reviews_'
+}
+
+export const getReviewStorageKey = (bookId) => `${STORAGE_KEYS.REVIEWS_PREFIX}${bookId}`
+
+export const getBookReviews = (bookId) => {
+  try {
+    const data = localStorage.getItem(getReviewStorageKey(bookId))
+    return data ? JSON.parse(data) : []
+  } catch {
+    return []
+  }
+}
+
+export const addBookReview = (bookId, review) => {
+  const reviews = getBookReviews(bookId)
+  const newReview = {
+    id: Date.now(),
+    ...review,
+    createTime: new Date().toLocaleString('zh-CN')
+  }
+  reviews.unshift(newReview)
+  localStorage.setItem(getReviewStorageKey(bookId), JSON.stringify(reviews))
+  return newReview
+}
+
+export const deleteBookReview = (bookId, reviewId) => {
+  const reviews = getBookReviews(bookId)
+  const filtered = reviews.filter(r => r.id !== reviewId)
+  localStorage.setItem(getReviewStorageKey(bookId), JSON.stringify(filtered))
+}
+
+export const getBookAverageRating = (bookId) => {
+  const reviews = getBookReviews(bookId)
+  if (reviews.length === 0) return 0
+  const sum = reviews.reduce((acc, r) => acc + r.rating, 0)
+  return Math.round((sum / reviews.length) * 10) / 10
+}
+
+export const getReviewCount = (bookId) => {
+  return getBookReviews(bookId).length
+}
+
+export const getAllReviews = () => {
+  const allReviews = []
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(STORAGE_KEYS.REVIEWS_PREFIX)) {
+      const bookId = key.replace(STORAGE_KEYS.REVIEWS_PREFIX, '')
+      const reviews = getBookReviews(bookId)
+      reviews.forEach(review => {
+        allReviews.push({
+          ...review,
+          bookId: parseInt(bookId)
+        })
+      })
+    }
+  })
+  return allReviews.sort((a, b) => b.id - a.id)
 }
 
 // 默认分类数据（支持动态管理）

@@ -12,6 +12,10 @@
           <h1>{{ book.title }}</h1>
           <p class="detail-author">作者：{{ book.author }}</p>
           
+          <div class="detail-rating">
+            <StarRating :rating="getBookAverageRating(book.id)" showValue showCount :count="getReviewCount(book.id)" />
+          </div>
+          
           <div class="detail-price">
             <span class="price-label">价格</span>
             <span class="price-value">¥{{ book.price.toFixed(2) }}</span>
@@ -45,6 +49,7 @@
           </div>
         </div>
       </div>
+      <BookReviews :book-id="book.id" />
     </div>
     <div v-else class="not-found">
       <svg class="not-found-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -63,6 +68,9 @@ import { useRoute } from 'vue-router'
 import { useBooksStore } from '../stores/books'
 import { useCartStore } from '../stores/cart'
 import { useUserStore } from '../stores/user'
+import { getBookAverageRating, getReviewCount } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
+import BookReviews from './BookReviews.vue'
 
 const route = useRoute()
 const booksStore = useBooksStore()
@@ -87,6 +95,8 @@ const addToCart = () => {
   for (let i = 0; i < quantity.value; i++) cartStore.addToCart(book.value)
   toast(`《${book.value.title}》x${quantity.value} 已加入购物车`, 'cart')
 }
+
+
 </script>
 
 <style scoped>
@@ -141,6 +151,10 @@ const addToCart = () => {
 .detail-author {
   font-size: 18px;
   color: #6c757d;
+  margin-bottom: 16px;
+}
+
+.detail-rating {
   margin-bottom: 32px;
 }
 
