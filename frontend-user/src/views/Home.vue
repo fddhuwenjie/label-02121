@@ -54,6 +54,19 @@
             <span class="book-category">{{ book.category }}</span>
             <h3>{{ book.title }}</h3>
             <p class="book-author">{{ book.author }}</p>
+            <div class="book-rating">
+              <div class="star-rating-small">
+                <span 
+                  v-for="star in 5" 
+                  :key="star"
+                  class="star-small"
+                  :class="{ active: star <= Math.round(getRating(book.id).average) }"
+                ></span>
+              </div>
+              <span class="rating-text" v-if="getRating(book.id).count > 0">
+                {{ getRating(book.id).average }} ({{ getRating(book.id).count }})
+              </span>
+            </div>
             <div class="book-footer">
               <span class="book-price">¥{{ book.price.toFixed(2) }}</span>
             </div>
@@ -81,6 +94,7 @@ import { useRouter } from 'vue-router'
 import { useBooksStore } from '../stores/books'
 import { useCartStore } from '../stores/cart'
 import { useUserStore } from '../stores/user'
+import { useBookReviews } from '../composables/useBookReviews'
 
 const router = useRouter()
 const booksStore = useBooksStore()
@@ -88,6 +102,7 @@ const cartStore = useCartStore()
 const userStore = useUserStore()
 const toast = inject('toast')
 const openLoginModal = inject('openLoginModal')
+const { getBookRating } = useBookReviews()
 
 const keyword = ref('')
 const searchResult = ref(null)
@@ -105,6 +120,7 @@ const displayBooks = computed(() => searchResult.value || booksStore.books)
 
 const search = () => { searchResult.value = booksStore.searchBooks(keyword.value) }
 const goToDetail = (id) => router.push(`/book/${id}`)
+const getRating = (bookId) => getBookRating(bookId)
 const addToCart = (book) => {
   if (!userStore.isLoggedIn) {
     toast('请先登录', 'error')
@@ -375,6 +391,48 @@ const addToCart = (book) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.book-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.star-rating-small {
+  display: flex;
+  gap: 2px;
+}
+
+.star-small {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+.star-small::before,
+.star-small::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #d1d5db;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.star-small.active::before,
+.star-small.active::after {
+  background: #f59e0b;
+}
+
+.rating-text {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
 }
 
 .book-price {

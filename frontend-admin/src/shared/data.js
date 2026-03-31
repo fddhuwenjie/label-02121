@@ -11,7 +11,8 @@ export const STORAGE_KEYS = {
   CATEGORIES: 'bookstore_categories',
   USERS: 'bookstore_users',
   USER_TOKEN: 'bookstore_user_token',
-  ADMIN_TOKEN: 'bookstore_admin_token'
+  ADMIN_TOKEN: 'bookstore_admin_token',
+  REVIEWS: 'reviews_'
 }
 
 // 默认分类数据（支持动态管理）

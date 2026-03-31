@@ -5,12 +5,23 @@
         <h1 class="page-title">图书管理</h1>
         <p class="page-subtitle">管理店铺所有图书信息</p>
       </div>
-      <button class="add-btn" @click="openDialog()">
+      <button v-if="activeTab === 'books'" class="add-btn" @click="openDialog()">
         <span>+</span> 添加图书
       </button>
     </div>
 
-    <div class="card">
+    <div class="tabs">
+      <button 
+        v-for="tab in tabs" 
+        :key="tab.key"
+        :class="['tab-btn', { active: activeTab === tab.key }]"
+        @click="activeTab = tab.key"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <div v-if="activeTab === 'books'" class="card">
       <div class="table-header">
         <div class="search-box">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,6 +50,41 @@
           <div class="book-actions">
             <button class="action-btn edit" @click="openDialog(book)">编辑</button>
             <button class="action-btn delete" @click="handleDelete(book.id)">删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="activeTab === 'reviews'" class="card">
+      <div class="table-header">
+        <div class="search-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input v-model="reviewSearchKey" placeholder="搜索评价..." />
+        </div>
+      </div>
+      <div class="reviews-table">
+        <div v-if="allReviews.length === 0" class="no-reviews">
+          <p>暂无用户评价</p>
+        </div>
+        <div v-for="review in filteredReviews" :key="review.id" class="review-item">
+          <div class="review-book">
+            <img :src="getBookCover(review.bookId)" :alt="getBookTitle(review.bookId)" />
+            <span class="book-name">{{ getBookTitle(review.bookId) }}</span>
+          </div>
+          <div class="review-user">
+            <span class="username">{{ review.username }}</span>
+            <span class="time">{{ review.createTime }}</span>
+          </div>
+          <div class="review-rating">
+            <StarRating :model-value="review.rating" />
+          </div>
+          <div class="review-content">
+            <p>{{ review.comment }}</p>
+          </div>
+          <div class="review-actions">
+            <button class="action-btn delete" @click="deleteReview(review)">删除</button>
           </div>
         </div>
       </div>
@@ -100,18 +146,27 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useAdminStore } from '../stores/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { generateBookCover } from '../shared/data'
+import { generateBookCover, STORAGE_KEYS } from '../shared/data'
+import { storage } from '../utils/storage'
+import StarRating from '../components/StarRating.vue'
 
 const adminStore = useAdminStore()
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref(null)
 const searchKey = ref('')
+const reviewSearchKey = ref('')
 const fileInputRef = ref(null)
+const activeTab = ref('books')
 const form = reactive({ title: '', author: '', category: '技术', price: 0, stock: 0, cover: '', description: '' })
+
+const tabs = [
+  { key: 'books', label: '图书列表' },
+  { key: 'reviews', label: '评价管理' }
+]
 
 const categoryColors = {
   '技术': '#3776ab',
@@ -126,6 +181,46 @@ const filteredBooks = computed(() => {
   if (!searchKey.value) return adminStore.books
   return adminStore.books.filter(b => b.title.includes(searchKey.value) || b.author.includes(searchKey.value))
 })
+
+const allReviews = computed(() => {
+  const reviews = []
+  adminStore.books.forEach(book => {
+    const key = `${STORAGE_KEYS.REVIEWS}${book.id}`
+    const bookReviews = storage.get(key, [])
+    bookReviews.forEach(review => {
+      reviews.push({ ...review, bookId: book.id })
+    })
+  })
+  return reviews.sort((a, b) => b.id - a.id)
+})
+
+const filteredReviews = computed(() => {
+  if (!reviewSearchKey.value) return allReviews.value
+  return allReviews.value.filter(r => 
+    r.username.includes(reviewSearchKey.value) || 
+    r.comment.includes(reviewSearchKey.value)
+  )
+})
+
+const getBookTitle = (bookId) => {
+  const book = adminStore.books.find(b => b.id === bookId)
+  return book ? book.title : '未知图书'
+}
+
+const getBookCover = (bookId) => {
+  const book = adminStore.books.find(b => b.id === bookId)
+  return book ? book.cover : ''
+}
+
+const deleteReview = (review) => {
+  ElMessageBox.confirm('确定删除该评价?', '提示', { type: 'warning' }).then(() => {
+    const key = `${STORAGE_KEYS.REVIEWS}${review.bookId}`
+    const bookReviews = storage.get(key, [])
+    const filtered = bookReviews.filter(r => r.id !== review.id)
+    storage.set(key, filtered)
+    ElMessage.success('删除成功')
+  }).catch(() => {})
+}
 
 const openDialog = (book) => {
   if (book) {
@@ -287,4 +382,122 @@ const handleDelete = (id) => {
 .cover-overlay span { color: white; font-size: 13px; font-weight: 500; }
 .cover-url-input { margin-top: 4px; }
 .gen-cover-btn { width: 100%; margin-top: 4px; }
+
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  padding: 12px 28px;
+  border: none;
+  background: #f4f4f8;
+  color: #6b7280;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.tab-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: white;
+}
+
+.reviews-table {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 80px 0;
+  color: #6b7280;
+}
+
+.review-item {
+  display: grid;
+  grid-template-columns: 200px 150px 120px 1fr 100px;
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+
+.review-item:hover {
+  background: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.review-book {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.review-book img {
+  width: 48px;
+  height: 67px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.review-book .book-name {
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.review-user {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-user .username {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.review-user .time {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.review-rating {
+  display: flex;
+  align-items: center;
+}
+
+.review-content {
+  min-width: 0;
+}
+
+.review-content p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+}
 </style>

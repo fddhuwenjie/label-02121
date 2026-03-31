@@ -45,6 +45,43 @@
           </div>
         </div>
       </div>
+
+      <div class="reviews-section">
+        <h2 class="section-title">用户评价</h2>
+        
+        <div v-if="userStore.isLoggedIn" class="review-form">
+          <h3>发表评价</h3>
+          <div class="form-group">
+            <label>评分</label>
+            <StarRating v-model="newRating" editable />
+          </div>
+          <div class="form-group">
+            <label>评论内容</label>
+            <textarea v-model="newComment" placeholder="分享你的阅读体验..." rows="4"></textarea>
+          </div>
+          <button class="btn btn-primary submit-btn" @click="submitReview">提交评价</button>
+        </div>
+        <div v-else class="review-login-prompt">
+          <p>请先登录后再发表评价</p>
+          <button class="btn btn-primary" @click="openLoginModal()">立即登录</button>
+        </div>
+
+        <div class="reviews-list">
+          <div v-if="reviews.length === 0" class="no-reviews">
+            <p>暂无评价，快来发表第一条评价吧！</p>
+          </div>
+          <div v-for="review in reviews" :key="review.id" class="review-item">
+            <div class="review-header">
+              <span class="review-username">{{ review.username }}</span>
+              <span class="review-time">{{ review.createTime }}</span>
+            </div>
+            <div class="review-rating">
+              <StarRating :model-value="review.rating" />
+            </div>
+            <p class="review-content">{{ review.comment }}</p>
+          </div>
+        </div>
+      </div>
     </div>
     <div v-else class="not-found">
       <svg class="not-found-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -58,11 +95,14 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBooksStore } from '../stores/books'
 import { useCartStore } from '../stores/cart'
 import { useUserStore } from '../stores/user'
+import { storage } from '../utils/storage'
+import { STORAGE_KEYS } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
 
 const route = useRoute()
 const booksStore = useBooksStore()
@@ -73,6 +113,42 @@ const openLoginModal = inject('openLoginModal')
 
 const book = computed(() => booksStore.getBookById(route.params.id))
 const quantity = ref(1)
+const reviews = ref([])
+const newRating = ref(5)
+const newComment = ref('')
+
+const loadReviews = () => {
+  if (!book.value) return
+  const key = `${STORAGE_KEYS.REVIEWS}${book.value.id}`
+  reviews.value = storage.get(key, [])
+}
+
+const submitReview = () => {
+  if (!newComment.value.trim()) {
+    toast('请输入评论内容', 'error')
+    return
+  }
+  
+  const review = {
+    id: Date.now(),
+    bookId: book.value.id,
+    userId: userStore.user.id,
+    username: userStore.user.username,
+    rating: newRating.value,
+    comment: newComment.value,
+    createTime: new Date().toLocaleString('zh-CN')
+  }
+  
+  const key = `${STORAGE_KEYS.REVIEWS}${book.value.id}`
+  const currentReviews = storage.get(key, [])
+  currentReviews.unshift(review)
+  storage.set(key, currentReviews)
+  
+  reviews.value = currentReviews
+  newRating.value = 5
+  newComment.value = ''
+  toast('评价提交成功', 'success')
+}
 
 const addToCart = () => {
   if (!userStore.isLoggedIn) {
@@ -87,6 +163,14 @@ const addToCart = () => {
   for (let i = 0; i < quantity.value; i++) cartStore.addToCart(book.value)
   toast(`《${book.value.title}》x${quantity.value} 已加入购物车`, 'cart')
 }
+
+onMounted(() => {
+  loadReviews()
+})
+
+watch(() => route.params.id, () => {
+  loadReviews()
+})
 </script>
 
 <style scoped>
@@ -264,6 +348,125 @@ const addToCart = () => {
 .add-cart-btn:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+.reviews-section {
+  margin-top: 80px;
+  padding-top: 60px;
+  border-top: 2px solid #e9ecef;
+}
+
+.section-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-bottom: 40px;
+}
+
+.review-form {
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.review-form h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 12px;
+}
+
+.form-group textarea {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  font-size: 16px;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.submit-btn {
+  padding: 14px 40px;
+  font-size: 16px;
+}
+
+.review-login-prompt {
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.review-login-prompt p {
+  font-size: 16px;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 60px 0;
+  color: #6c757d;
+}
+
+.review-item {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.review-username {
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.review-time {
+  font-size: 14px;
+  color: #adb5bd;
+}
+
+.review-rating {
+  margin-bottom: 12px;
+}
+
+.review-content {
+  color: #495057;
+  line-height: 1.8;
+  margin: 0;
 }
 
 .not-found {
