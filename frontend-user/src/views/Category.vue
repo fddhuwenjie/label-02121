@@ -22,6 +22,10 @@
           <span class="book-category">{{ book.category }}</span>
           <h3>{{ book.title }}</h3>
           <p class="book-author">{{ book.author }}</p>
+          <div class="book-rating">
+            <StarRating :model-value="getRating(book.id).average" />
+            <span class="rating-count">({{ getRating(book.id).count }})</span>
+          </div>
           <span class="book-price">¥{{ book.price.toFixed(2) }}</span>
         </div>
       </div>
@@ -40,10 +44,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useBooksStore } from '../stores/books'
+import { getBookRatingStats } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
 
 const booksStore = useBooksStore()
 const currentCategory = ref('全部')
 const filteredBooks = computed(() => booksStore.getBooksByCategory(currentCategory.value))
+
+const getRating = (bookId) => getBookRatingStats(bookId)
 </script>
 
 <style scoped>
@@ -154,7 +162,19 @@ const filteredBooks = computed(() => booksStore.getBooksByCategory(currentCatego
 .book-author {
   color: #6c757d;
   font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.book-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 12px;
+}
+
+.rating-count {
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .book-price {

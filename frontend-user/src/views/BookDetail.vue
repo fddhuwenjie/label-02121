@@ -45,6 +45,40 @@
           </div>
         </div>
       </div>
+
+      <div class="reviews-section">
+        <h2 class="reviews-title">用户评价</h2>
+        
+        <div v-if="userStore.isLoggedIn" class="review-form">
+          <h3 class="form-title">发表评价</h3>
+          <div class="form-group">
+            <label class="form-label">评分</label>
+            <StarRating v-model="newRating" interactive />
+          </div>
+          <div class="form-group">
+            <label class="form-label">评价内容</label>
+            <textarea v-model="newContent" class="review-textarea" placeholder="请输入您的评价..." rows="4"></textarea>
+          </div>
+          <button class="btn btn-primary submit-btn" @click="submitReview">提交评价</button>
+        </div>
+
+        <div v-if="reviews.length === 0" class="no-reviews">
+          暂无评价，欢迎发表第一条评价
+        </div>
+        <div v-else class="reviews-list">
+          <div v-for="review in reviews" :key="review.id" class="review-item">
+            <div class="review-header">
+              <div class="review-user">
+                <div class="user-avatar">{{ review.username.charAt(0).toUpperCase() }}</div>
+                <span class="username">{{ review.username }}</span>
+              </div>
+              <StarRating :model-value="review.rating" />
+            </div>
+            <p class="review-content">{{ review.content }}</p>
+            <span class="review-time">{{ review.createTime }}</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div v-else class="not-found">
       <svg class="not-found-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -63,6 +97,8 @@ import { useRoute } from 'vue-router'
 import { useBooksStore } from '../stores/books'
 import { useCartStore } from '../stores/cart'
 import { useUserStore } from '../stores/user'
+import { getBookReviews, addBookReview } from '../shared/data'
+import StarRating from '../components/StarRating.vue'
 
 const route = useRoute()
 const booksStore = useBooksStore()
@@ -73,6 +109,39 @@ const openLoginModal = inject('openLoginModal')
 
 const book = computed(() => booksStore.getBookById(route.params.id))
 const quantity = ref(1)
+const newRating = ref(0)
+const newContent = ref('')
+const reviews = ref([])
+
+const loadReviews = () => {
+  reviews.value = getBookReviews(route.params.id)
+}
+
+const submitReview = () => {
+  if (newRating.value === 0) {
+    toast('请选择评分', 'error')
+    return
+  }
+  if (!newContent.value.trim()) {
+    toast('请输入评价内容', 'error')
+    return
+  }
+  const review = {
+    id: Date.now().toString(),
+    userId: userStore.user.id,
+    username: userStore.user.username,
+    rating: newRating.value,
+    content: newContent.value.trim(),
+    createTime: new Date().toLocaleString('zh-CN')
+  }
+  addBookReview(route.params.id, review)
+  newRating.value = 0
+  newContent.value = ''
+  loadReviews()
+  toast('评价提交成功', 'success')
+}
+
+loadReviews()
 
 const addToCart = () => {
   if (!userStore.isLoggedIn) {
@@ -264,6 +333,127 @@ const addToCart = () => {
 .add-cart-btn:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+.reviews-section {
+  margin-top: 80px;
+  padding-top: 40px;
+  border-top: 1px solid #e9ecef;
+}
+
+.reviews-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 32px;
+}
+
+.review-form {
+  background: #f8f9fa;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.form-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 12px;
+}
+
+.review-textarea {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  font-size: 14px;
+  resize: none;
+  font-family: inherit;
+  transition: all 0.3s;
+}
+
+.review-textarea:focus {
+  outline: none;
+  border-color: #1a1a2e;
+}
+
+.submit-btn {
+  padding: 14px 40px;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 60px 0;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.review-item {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.review-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.username {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.review-content {
+  color: #495057;
+  line-height: 1.8;
+  margin-bottom: 12px;
+}
+
+.review-time {
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .not-found {
