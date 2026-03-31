@@ -22,6 +22,19 @@
           <span class="book-category">{{ book.category }}</span>
           <h3>{{ book.title }}</h3>
           <p class="book-author">{{ book.author }}</p>
+          <div class="book-rating">
+            <div class="star-rating-small">
+              <span 
+                v-for="star in 5" 
+                :key="star"
+                class="star-small"
+                :class="{ active: star <= Math.round(getRating(book.id).average) }"
+              ></span>
+            </div>
+            <span class="rating-text" v-if="getRating(book.id).count > 0">
+              {{ getRating(book.id).average }} ({{ getRating(book.id).count }})
+            </span>
+          </div>
           <span class="book-price">¥{{ book.price.toFixed(2) }}</span>
         </div>
       </div>
@@ -40,10 +53,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useBooksStore } from '../stores/books'
+import { useBookReviews } from '../composables/useBookReviews'
 
 const booksStore = useBooksStore()
+const { getBookRating } = useBookReviews()
 const currentCategory = ref('全部')
 const filteredBooks = computed(() => booksStore.getBooksByCategory(currentCategory.value))
+const getRating = (bookId) => getBookRating(bookId)
 </script>
 
 <style scoped>
@@ -155,6 +171,48 @@ const filteredBooks = computed(() => booksStore.getBooksByCategory(currentCatego
   color: #6c757d;
   font-size: 14px;
   margin-bottom: 12px;
+}
+
+.book-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.star-rating-small {
+  display: flex;
+  gap: 2px;
+}
+
+.star-small {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+.star-small::before,
+.star-small::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #d1d5db;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.star-small.active::before,
+.star-small.active::after {
+  background: #f59e0b;
+}
+
+.rating-text {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
 }
 
 .book-price {
